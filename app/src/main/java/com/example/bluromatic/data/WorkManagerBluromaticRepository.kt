@@ -19,24 +19,60 @@ package com.example.bluromatic.data
 import android.content.Context
 import android.net.Uri
 import androidx.work.Data
+import androidx.work.OneTimeWorkRequest
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.example.bluromatic.KEY_BLUR_LEVEL
 import com.example.bluromatic.KEY_IMAGE_URI
+import com.example.bluromatic.getImageUri
+import com.example.bluromatic.workers.BlurWorker
+import com.example.bluromatic.workers.CleanupWorker
+import com.example.bluromatic.workers.SaveImageToFileWorker
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 
+// 任务管理仓库
 class WorkManagerBluromaticRepository(context: Context) : BluromaticRepository {
 
+    private var imageUri: Uri = context.getImageUri()
+    // 任务管理器：持久性工作库，重启后可继续运行，可按计划执行
+    private val workManager = WorkManager.getInstance(context)
     override val outputWorkInfo: Flow<WorkInfo?> = MutableStateFlow(null)
-
     /**
      * Create the WorkRequests to apply the blur and save the resulting image
+     * 创建一个工作任务
      * @param blurLevel The amount to blur the image
      */
-    override fun applyBlur(blurLevel: Int) {}
+    override fun applyBlur(blurLevel: Int) {
+        // Add WorkRequest to Cleanup temporary images
+        // 1.WorkContinuation 支持链式调用，从清理工作任务开始
+        var continuation = workManager.beginWith(OneTimeWorkRequest.from(CleanupWorker::class.java))
+        // 2.创建缩放任务
+        val blurBuilder = OneTimeWorkRequestBuilder<BlurWorker>()
+        // PeriodicWorkRequestBuilder
+        // 添加附加数据到工作任务中
+        blurBuilder.setInputData(createInputDataForWorkRequest(blurLevel, imageUri))
+        // 一次性的任务请求入队，加入后台处理
+        // workManager.enqueue(blurBuilder.build())
+        // 工作任务执行结果在哪里处理？
+
+        // Add the blur work request to the chain
+        // 3.将缩放任务加入调用链中
+        continuation = continuation.then(blurBuilder.build())
+
+        // Add WorkRequest to save the image to the filesystem
+        // 4.创建保存图片工作任务
+        val save = OneTimeWorkRequestBuilder<SaveImageToFileWorker>().build()
+        // 5.将保存图片任务加入调用链中
+        continuation = continuation.then(save)
+        // 6.链式调用入队
+        continuation.enqueue()
+    }
 
     /**
      * Cancel any ongoing WorkRequests
+     * 取消正在运行的工作任务
      * */
     override fun cancelWork() {}
 
@@ -44,6 +80,8 @@ class WorkManagerBluromaticRepository(context: Context) : BluromaticRepository {
      * Creates the input data bundle which includes the blur level to
      * update the amount of blur to be applied and the Uri to operate on
      * @return Data which contains the Image Uri as a String and blur level as an Integer
+     * Data是轻量级键值对存储容器
+     * 创建一个存储键值对的对象
      */
     private fun createInputDataForWorkRequest(blurLevel: Int, imageUri: Uri): Data {
         val builder = Data.Builder()

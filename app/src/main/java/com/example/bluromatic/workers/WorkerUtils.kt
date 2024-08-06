@@ -63,6 +63,7 @@ fun makeStatusNotification(message: String, context: Context) {
         channel.description = description
 
         // Add the channel
+        // 创建通知管理器
         val notificationManager =
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
 
@@ -82,6 +83,7 @@ fun makeStatusNotification(message: String, context: Context) {
 }
 
 /**
+ * 创建按比例缩放的位图
  * Blurs the given Bitmap image
  * @param bitmap Image to blur
  * @param blurLevel Blur level input
@@ -99,6 +101,7 @@ fun blurBitmap(bitmap: Bitmap, blurLevel: Int): Bitmap {
 }
 
 /**
+ * 将位图写到文件中
  * Writes bitmap to a temporary file and returns the Uri for the file
  * @param applicationContext Application context
  * @param bitmap Bitmap to write to temp file
@@ -107,7 +110,9 @@ fun blurBitmap(bitmap: Bitmap, blurLevel: Int): Bitmap {
  */
 @Throws(FileNotFoundException::class)
 fun writeBitmapToFile(applicationContext: Context, bitmap: Bitmap): Uri {
+    // 生成文件名
     val name = String.format("blur-filter-output-%s.png", UUID.randomUUID().toString())
+    // 文件输出目录，通过context读取文件系统的绝对目录
     val outputDir = File(applicationContext.filesDir, OUTPUT_PATH)
     if (!outputDir.exists()) {
         outputDir.mkdirs() // should succeed
@@ -115,9 +120,12 @@ fun writeBitmapToFile(applicationContext: Context, bitmap: Bitmap): Uri {
     val outputFile = File(outputDir, name)
     var out: FileOutputStream? = null
     try {
+        // 文件输出流
         out = FileOutputStream(outputFile)
+        // 位图压缩然后输出到流中
         bitmap.compress(Bitmap.CompressFormat.PNG, 0 /* ignored for PNG */, out)
     } finally {
+        //out?.如何out不为空，使用.let输出到指定的函数块
         out?.let {
             try {
                 it.close()
@@ -126,5 +134,6 @@ fun writeBitmapToFile(applicationContext: Context, bitmap: Bitmap): Uri {
             }
         }
     }
+    // 返回URI，这里是来自于本地文件生成的URI
     return Uri.fromFile(outputFile)
 }

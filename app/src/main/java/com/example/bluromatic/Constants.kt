@@ -16,6 +16,8 @@
 
 package com.example.bluromatic
 
+// 常量定义：
+
 // Notification Channel constants
 
 // Name of Notification Channel for verbose notifications of background work

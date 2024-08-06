@@ -23,5 +23,6 @@ interface AppContainer {
 }
 
 class DefaultAppContainer(context: Context) : AppContainer {
+    // 实例化仓库
     override val bluromaticRepository = WorkManagerBluromaticRepository(context)
 }

@@ -20,6 +20,9 @@ import android.app.Application
 import com.example.bluromatic.data.AppContainer
 import com.example.bluromatic.data.DefaultAppContainer
 
+// 应用初始化对象，Application继承Context
+// 应用上下文：Context 可以打开Activity，发起广播，接收intents
+// launching activities, broadcasting and receiving intents, etc.
 class BluromaticApplication : Application()  {
     /** AppContainer instance used by the rest of classes to obtain dependencies */
     lateinit var container: AppContainer

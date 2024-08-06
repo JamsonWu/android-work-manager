@@ -19,6 +19,7 @@ package com.example.bluromatic.data
 import com.example.bluromatic.R
 
 object BlurAmountData {
+    // 触发数量三种选择
     val blurAmount = listOf(
         BlurAmount(
             blurAmountRes = R.string.blur_lv_1,
