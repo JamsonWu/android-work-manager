@@ -54,7 +54,7 @@ class SaveImageToFileWorker(ctx: Context, params: WorkerParameters) : CoroutineW
                 )
                 if (!imageUrl.isNullOrEmpty()) {
                     val output = workDataOf(KEY_IMAGE_URI to imageUrl)
-
+                    // 添加保存的图片路径到任务输出结果数据中
                     Result.success(output)
                 } else {
                     Log.e(

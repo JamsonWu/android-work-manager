@@ -19,13 +19,19 @@ package com.example.bluromatic.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.work.WorkInfo
 import com.example.bluromatic.BluromaticApplication
+import com.example.bluromatic.KEY_IMAGE_URI
 import com.example.bluromatic.data.BlurAmountData
 import com.example.bluromatic.data.BluromaticRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 
 /**
  * [BlurViewModel] starts and stops the WorkManger and applies blur to the image. Also updates the
@@ -35,7 +41,30 @@ class BlurViewModel(private val bluromaticRepository: BluromaticRepository) : Vi
 
     internal val blurAmount = BlurAmountData.blurAmount
 
-    val blurUiState: StateFlow<BlurUiState> = MutableStateFlow(BlurUiState.Default)
+    // val blurUiState: StateFlow<BlurUiState> = MutableStateFlow(BlurUiState.Default)
+    // 从仓库中读取任务实时状态Flow
+    val blurUiState: StateFlow<BlurUiState> = bluromaticRepository.outputWorkInfo
+        // 在map内将WorkInfo Flow 转为UI状态需要用到的状态值
+        .map { info ->
+            // 从WorkInfo中读取outputData
+            val outputImageUri = info.outputData.getString(KEY_IMAGE_URI)
+            when {
+                // 任务已完成同时有输出图片地址，说明图片保存已完成
+                info.state.isFinished && !outputImageUri.isNullOrEmpty() -> {
+                    BlurUiState.Complete(outputUri = outputImageUri)
+                }
+                // workInfo的状态为取消
+                info.state == WorkInfo.State.CANCELLED -> {
+                    BlurUiState.Default
+                }
+                // 其它状态视为正在加载中
+                else -> BlurUiState.Loading
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = BlurUiState.Default
+        )
 
     /**
      * Call the method from repository to create the WorkRequest to apply the blur
@@ -44,6 +73,10 @@ class BlurViewModel(private val bluromaticRepository: BluromaticRepository) : Vi
      */
     fun applyBlur(blurLevel: Int) {
         bluromaticRepository.applyBlur(blurLevel)
+    }
+
+    fun cancelWork(){
+       bluromaticRepository.cancelWork()
     }
 
     /**

@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.Flow
 // 仓库方法与属性接口
 interface BluromaticRepository {
     // 任务信息流
-    val outputWorkInfo: Flow<WorkInfo?>
+    val outputWorkInfo: Flow<WorkInfo>
     // 触发任务，参数是级别
     fun applyBlur(blurLevel: Int)
     // 取消任务

@@ -39,6 +39,8 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
@@ -75,9 +77,11 @@ fun BluromaticScreen(blurViewModel: BlurViewModel = viewModel(factory = BlurView
             .fillMaxSize()
             .statusBarsPadding()
             .padding(
-                start = WindowInsets.safeDrawing.asPaddingValues()
+                start = WindowInsets.safeDrawing
+                    .asPaddingValues()
                     .calculateStartPadding(layoutDirection),
-                end = WindowInsets.safeDrawing.asPaddingValues()
+                end = WindowInsets.safeDrawing
+                    .asPaddingValues()
                     .calculateEndPadding(layoutDirection)
             )
     ) {
@@ -85,7 +89,7 @@ fun BluromaticScreen(blurViewModel: BlurViewModel = viewModel(factory = BlurView
             blurUiState = uiState,
             blurAmountOptions = blurViewModel.blurAmount,
             applyBlur = blurViewModel::applyBlur,
-            cancelWork = {},
+            cancelWork = {blurViewModel.cancelWork()},
             modifier = Modifier
                 .verticalScroll(rememberScrollState())
                 .padding(dimensionResource(R.dimen.padding_medium))
@@ -102,6 +106,7 @@ fun BluromaticScreenContent(
     modifier: Modifier = Modifier
 ) {
     var selectedValue by rememberSaveable { mutableStateOf(1) }
+    // 通过LocalContext可以获取当前应用上下文
     val context = LocalContext.current
     Column(modifier = modifier) {
         Image(
@@ -121,7 +126,9 @@ fun BluromaticScreenContent(
         BlurActions(
             blurUiState = blurUiState,
             onStartClick = { applyBlur(selectedValue) },
-            onSeeFileClick = {},
+            onSeeFileClick = {
+                showBlurredImage(context, it)
+            },
             onCancelClick = { cancelWork() },
             modifier = Modifier.fillMaxWidth()
         )
@@ -140,11 +147,28 @@ private fun BlurActions(
         modifier = modifier,
         horizontalArrangement = Arrangement.Center
     ) {
-        Button(
-            onClick = onStartClick,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(stringResource(R.string.start))
+        // 处理多个分支情况
+        when (blurUiState) {
+            // 默认状态：即初始状态
+            // 用 is 判断当前状态是否为 Default
+            is BlurUiState.Default -> {
+                // 初始状态显示一个开始按钮
+                Button(onStartClick) { Text(stringResource(R.string.start)) }
+            }
+            is BlurUiState.Loading -> {
+                // 正在加载中显示一个取消按钮和一个圆形的进度状态
+                FilledTonalButton(onCancelClick) { Text(stringResource(R.string.cancel_work)) }
+                CircularProgressIndicator(modifier = Modifier.padding(dimensionResource(R.dimen.padding_small)))
+            }
+            is BlurUiState.Complete -> {
+                // 任务完成了，可以再继续开始，这里与第一个重复了
+                Button(onStartClick) { Text(stringResource(R.string.start)) }
+                FilledTonalButton(onClick = {
+                    onSeeFileClick(blurUiState.outputUri)
+                },modifier = Modifier.padding(start=dimensionResource(R.dimen.padding_small))) {
+                   Text(stringResource(R.string.see_file))
+                }
+            }
         }
     }
 }
@@ -189,13 +213,19 @@ private fun BlurAmountContent(
     }
 }
 
+// 使用Intent.Action_View弹窗显示图片内容
 private fun showBlurredImage(context: Context, currentUri: String) {
     val uri = if (currentUri.isNotEmpty()) {
         Uri.parse(currentUri)
     } else {
         null
     }
+    // Intent 有一个参数是 Action
+    // ACTION_VIEW是Activity的Action，将在activity中展示uri数据给用户
+    // 根据不同的数据内容用不同的方式打开窗口显示，比如图片地址就会使用显示图片的窗口
+    // 如果是电话就会打开电话窗口等等
     val actionView = Intent(Intent.ACTION_VIEW, uri)
+    // 通过context可以打开一个窗口 Activity
     context.startActivity(actionView)
 }
 
